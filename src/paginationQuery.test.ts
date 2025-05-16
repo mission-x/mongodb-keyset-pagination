@@ -7,13 +7,13 @@ describe('tests',  () => {
     let con: MongoClient;
     let mongoServer: MongoMemoryServer;
     let db: Db;
-    let collection: Collection;
+    let col: Collection;
 
     before(async () => {
         mongoServer = await MongoMemoryServer.create();
         con = await MongoClient.connect(mongoServer.getUri(), {});
         db = con.db(mongoServer.instanceInfo!.dbName);
-        collection = db.collection('test');
+        col = db.collection('test');
     });
 
     after(async () => {
@@ -27,9 +27,9 @@ describe('tests',  () => {
 
     it('successfully sets & gets information from the database', async () => {
         assert.notEqual(db, undefined);
-        const result = await collection.insertMany([{ a: 1 }, { b: 1 }]);
+        const result = await col.insertMany([{ a: 1 }, { b: 1 }]);
         assert.strictEqual(result.insertedCount, 2);
-        assert.equal(await collection.countDocuments({}), 2);
+        assert.equal(await col.countDocuments({}), 2);
     });
 
     it('is a subtest', () => {
