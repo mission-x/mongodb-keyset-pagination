@@ -1,0 +1,28 @@
+{
+  "name": "mongodb-keyset-pagination",
+  "version": "1.0.0",
+  "description": "Helper methods to make MongoDB keyset pagination easier.",
+  "keywords": [
+    "mongodb",
+    "mongo",
+    "keyset",
+    "pagination",
+    "mongodb keyset",
+    "mongodb pagination"
+  ],
+  "homepage": "https://github.com/mission-x/mongodb-keyset-pagination#readme",
+  "bugs": {
+    "url": "https://github.com/mission-x/mongodb-keyset-pagination/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mission-x/mongodb-keyset-pagination.git"
+  },
+  "license": "ISC",
+  "author": "missionX",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "test"
+  }
+}
