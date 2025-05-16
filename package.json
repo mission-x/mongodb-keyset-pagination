@@ -7,7 +7,7 @@
   "license": "ISC",
   "main": "dist/index.js",
   "scripts": {
-    "test": "node --test './src/**/*.test.ts'",
+    "test": "node --test ./src/**/*.test.ts",
     "build": "tsc",
     "prepack": "tsc",
     "types:check": "tsc --noEmit"
@@ -26,6 +26,7 @@
     "url": "git+https://github.com/mission-x/mongodb-keyset-pagination.git"
   },
   "devDependencies": {
+    "@types/node": "^22.15.18",
     "typescript": "^5.8.3"
   },
   "files": [
