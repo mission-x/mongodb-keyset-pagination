@@ -1,7 +1,7 @@
 import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import {Collection, Db, MongoClient} from 'mongodb';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 describe('tests',  () => {
     let con: MongoClient;
