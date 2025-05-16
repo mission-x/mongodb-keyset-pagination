@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "mongodb-keyset-pagination",
   "version": "1.0.0",
   "description": "Helper methods to make MongoDB keyset pagination easier.",
