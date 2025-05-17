@@ -1,7 +1,8 @@
 import {describe, it, before, after} from 'node:test';
 import assert from 'node:assert';
-import {Collection, Db, MongoClient} from 'mongodb';
+import {MongoClient} from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import type {Collection, Db} from 'mongodb';
 
 describe('tests',  () => {
     let con: MongoClient;
@@ -34,5 +35,50 @@ describe('tests',  () => {
 
     it('is a subtest', () => {
         assert.ok('some relevant assertion here');
+    });
+
+    it('returns the skip token contents to be able to encrypt or store as pleased', () => {
+        assert.ok('');
+    });
+
+    it('skips the skip values that are not defined when building the paginated query', () => {
+        assert.ok('');
+    });
+
+    describe('Paginate on skip value within an object',  () => {
+        it('paginates on dot-notation, nested object property', () => {
+            assert.ok('');
+        });
+    });
+
+    describe('Paginate on skip value within an array',  () => {
+        it('paginates an array of primitives', () => {
+            assert.ok('');
+        });
+        it('paginates an array of objects', () => {
+            assert.ok('');
+        });
+    });
+
+    describe('Build paginated query with expected skip value types',  () => {
+        it('paginates with skip value of type Date', () => {
+            assert.ok('');
+        });
+
+        it('paginates with skip value of type ObjectId', () => {
+            assert.ok('');
+        });
+    });
+
+    describe('Custom encryption methods',  () => {
+        it('encrypts and decrypts by provided custom encryption methods', () => {
+            assert.ok('');
+        });
+    });
+
+    describe('Custom date parser',  () => {
+        it('paginates on dates by utilizing a custom date parser', () => {
+            assert.ok('');
+        });
     });
 });
