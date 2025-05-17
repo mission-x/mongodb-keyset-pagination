@@ -1,29 +1,31 @@
-import type {Filter, ObjectId} from 'mongodb';
+import type {Filter, ObjectId, Document} from 'mongodb';
 import isDate from 'lodash.isdate';
 
-type SkipValue = string | number | boolean | bigint | object | ObjectId | null | undefined;
-type SkipValueType = 'string' | 'number' | 'boolean' | 'bigint' | 'date' | 'objectid' | 'null' | 'undefined';
+export type SkipValue = string | number | boolean | bigint | object | ObjectId | null | undefined;
+export type SkipValueType = 'string' | 'number' | 'boolean' | 'bigint' | 'date' | 'objectid' | 'null' | 'undefined';
+
+export interface SkipValues {
+    [key: string]: {
+        type: SkipValueType,
+        value?: SkipValue
+    };
+}
 
 /**
  * For simplicity, we've opinionated for the sort to be of type object.
  * In the future we can support more types.
  */
-interface KeySetSort {
+export interface KeySetSort {
     [key: string]: number;
 }
 
-interface SkipTokenContent {
+export interface SkipTokenContent {
     sort: KeySetSort,
     limit: number,
-    skipValues: {
-        [key: string]: {
-            type: SkipValueType,
-            value: SkipValue
-        };
-    },
+    skipValues: SkipValues,
 }
 
-interface KeySetFindOptions {
+export interface KeySetFindOptions {
     sort?: KeySetSort;
     limit: number;
 }
@@ -32,53 +34,41 @@ interface KeySetFindOptions {
  * For more details: https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3
  * TODO: Make a class where some defaults can be configured, like the fallback 100 limit
  */
-async function getPaginatedQuery(filter: Filter<any>, skipToken?: string, options: KeySetFindOptions = { limit: 100 }) {
+export async function getPaginatedQuery(filter: Filter<any>, skipToken?: string, options: KeySetFindOptions = { limit: 100 }) {
     let skipTokenContent: SkipTokenContent;
 
     if (skipToken) {
         skipTokenContent = decodeSkipToken(skipToken);
     }
 
-    const limit = options.limit ?? skipTokenContent?.limit;
-    const sort = skipTokenContent?.sort ?? getSortQuery(options.sort);
-    const filterQuery = getFilterQuery(filter, skipTokenContent);
+    const paginatedLimit = options.limit ?? skipTokenContent?.limit;
+    const paginatedSort = skipTokenContent?.sort ?? getSortQuery(options.sort);
+    const paginatedFilter = getFilterQuery(filter, skipTokenContent);
 
-    const queryOptions = {
-        ...(skipTokenProps?.options ?? options),
-        limit,
-        sort,
-        lean: options.lean !== false,
-    };
+    const getSkipToken = (documentList: Document[] = []) => {
+        if (!documentList.length) {
+            return [];
+        }
 
-    const list = await Model.find(filterQuery, projection, queryOptions).exec();
+        const lastDocument = documentList[documentList.length - 1];
+        const newSkipTokenContent: SkipTokenContent = {
+            skipValues: getSkipValues(paginatedSort, lastDocument),
+            limit: paginatedLimit,
+            sort: paginatedSort,
+        };
 
-    if (!list.length || list.length < limit) {
-        return [list];
+        return [encodeSkipToken(newSkipTokenContent), newSkipTokenContent];
     }
 
-    const lastItem = list[list.length - 1];
-
-    const newSkipToken = encryption.encrypt(
-        JSON.stringify({
-            skip: Object.keys(sort).reduce(
-                (obj, key) => ({
-                    ...obj,
-                    [key]: isValidObjectId(lastItem[key])
-                        ? getObjectIdToString(lastItem[key])
-                        : lastItem[key],
-                }),
-                {}
-            ),
-            options: queryOptions,
-            limit,
-            sort,
-        })
-    );
-
-    return [list, newSkipToken];
+    return {
+        paginatedFilter,
+        paginatedSort,
+        paginatedLimit,
+        getSkipToken
+    };
 }
 
-function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenContent): Filter<any> {
+export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenContent): Filter<any> {
     if (!skipTokenContent) {
         return filter;
     }
@@ -218,17 +208,21 @@ function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenContent)
  *
  * As you see, it gets id=5 twice: on page 1 and 2.
  */
-function getSortQuery(sort: KeySetSort = {}): KeySetSort {
+export function getSortQuery(sort: KeySetSort = {}): KeySetSort {
     return {
         ...sort,
         _id: sort._id === -1 ? -1 : 1,
     };
 }
 
-function encodeSkipToken(skipTokenContent: SkipTokenContent) {
-    return Buffer.from(JSON.stringify(skipTokenContent)).toString('hex');
+export function getSkipValues(sort: KeySetSort, document: Document): SkipValues {
+
 }
 
-function decodeSkipToken(skipToken: string): SkipTokenContent {
-    return JSON.parse(Buffer.from(skipToken, 'hex').toString('utf8'));
+export function encodeSkipToken(skipTokenContent: SkipTokenContent) {
+    return ''; // Needs encryption
+}
+
+export function decodeSkipToken(skipToken: string): SkipTokenContent {
+    return ''; // Needs decryption
 }
