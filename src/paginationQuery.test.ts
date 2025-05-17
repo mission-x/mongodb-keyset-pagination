@@ -77,7 +77,7 @@ describe('tests',  () => {
     });
 
     describe('Custom date parser',  () => {
-        it('paginates on dates by utilizing a custom date parser', () => {
+        it('paginates on dates by utilizing a provided custom date parser', () => {
             assert.ok('');
         });
     });
