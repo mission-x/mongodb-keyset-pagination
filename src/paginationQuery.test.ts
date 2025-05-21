@@ -410,10 +410,6 @@ describe('tests', () => {
 
             assertPaginatedListEquality(expectedPaginatedList, paginatedList);
         });
-
-        it('paginates an array of objects', () => {
-            assert.ok(true);
-        });
     });
 
     describe('Paginate with sorting within an array', () => {
