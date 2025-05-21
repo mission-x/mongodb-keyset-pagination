@@ -1,12 +1,17 @@
-import type {Filter, Document, SortDirection, FindOptions} from 'mongodb';
-import isDate from 'lodash.isdate';
-import type {ObjectIdLike} from "bson";
-import {isObjectId} from "./utils.ts";
+import type { ObjectIdLike } from 'bson';
+import type { Document, Filter, FindOptions, SortDirection } from 'mongodb';
 
-export type SkipValue = string | number | boolean | bigint | Date | ObjectIdLike | null;
+export type SkipValue =
+	| string
+	| number
+	| boolean
+	| bigint
+	| Date
+	| ObjectIdLike
+	| null;
 
 export interface SkipValues {
-    [key: string]: SkipValue | null;
+	[key: string]: SkipValue | null;
 }
 
 /**
@@ -14,182 +19,202 @@ export interface SkipValues {
  * In the future we can support more types.
  */
 export interface KeySetSort {
-    [key: string]: SortDirection;
+	[key: string]: SortDirection;
 }
 
 export interface SkipTokenContent {
-    sort: KeySetSort,
-    limit: number,
-    skipValues: SkipValues,
+	sort: KeySetSort;
+	limit: number;
+	skipValues: SkipValues;
 }
 
 export interface KeySetFindOptions extends FindOptions {
-    sort?: KeySetSort;
+	sort?: KeySetSort;
 }
 
 export interface PaginatedQuery<TSchema> {
-    paginatedFilter: Filter<TSchema>,
-    paginatedSort: KeySetSort,
-    paginatedLimit: number,
+	paginatedFilter: Filter<TSchema>;
+	paginatedSort: KeySetSort;
+	paginatedLimit: number;
 
-    getSkipContent(documentList: Document[]): SkipTokenContent
+	getSkipContent(documentList: Document[]): SkipTokenContent;
 }
 
 /**
  * For more details: https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3
  * TODO: Make a class where some defaults can be configured, like the fallback 100 limit
  */
-export async function getPaginatedQuery<TSchema>(filter: Filter<TSchema>, skipTokenContent?: SkipTokenContent, options: KeySetFindOptions = {}): Promise<PaginatedQuery<TSchema>> {
-    const paginatedLimit = options.limit ?? skipTokenContent?.limit ?? 100;
-    const paginatedSort = skipTokenContent?.sort ?? getSortQuery(options.sort);
-    const paginatedFilter = getFilterQuery(filter, skipTokenContent);
+export async function getPaginatedQuery<TSchema>(
+	filter: Filter<TSchema>,
+	skipTokenContent?: SkipTokenContent,
+	options: KeySetFindOptions = {},
+): Promise<PaginatedQuery<TSchema>> {
+	const paginatedLimit = options.limit ?? skipTokenContent?.limit ?? 100;
+	const paginatedSort = skipTokenContent?.sort ?? getSortQuery(options.sort);
+	const paginatedFilter = getFilterQuery(filter, skipTokenContent);
 
-    const getSkipContent = (documentList: Document[] = []): SkipTokenContent => {
-        if (!documentList.length || documentList.length < paginatedLimit) {
-            return;
-        }
+	const getSkipContent = (documentList: Document[] = []): SkipTokenContent => {
+		if (!documentList.length || documentList.length < paginatedLimit) {
+			return;
+		}
 
-        const lastDocument = documentList[documentList.length - 1];
-        return {
-            skipValues: getSkipValues(paginatedSort, lastDocument),
-            limit: paginatedLimit,
-            sort: paginatedSort,
-        };
-    }
+		const lastDocument = documentList[documentList.length - 1];
+		return {
+			skipValues: getSkipValues(paginatedSort, lastDocument),
+			limit: paginatedLimit,
+			sort: paginatedSort,
+		};
+	};
 
-    return {
-        paginatedFilter,
-        paginatedSort,
-        paginatedLimit,
-        getSkipContent
-    };
+	return {
+		paginatedFilter,
+		paginatedSort,
+		paginatedLimit,
+		getSkipContent,
+	};
 }
 
-export function getFilterQuery<TSchema>(filter: Filter<TSchema>, skipTokenContent: SkipTokenContent): Filter<TSchema> {
-    if (!skipTokenContent) {
-        return filter;
-    }
+export function getFilterQuery<TSchema>(
+	filter: Filter<TSchema>,
+	skipTokenContent: SkipTokenContent,
+): Filter<TSchema> {
+	if (!skipTokenContent) {
+		return filter;
+	}
 
-    const sortObj = skipTokenContent.sort;
-    const sortObjWithoutId = Object.entries(sortObj).reduce((obj, [key, value]) => key === '_id' ? obj : {
-        ...obj,
-        [key]: value,
-    }, {});
+	const sortObj = skipTokenContent.sort;
+	const sortObjWithoutId = Object.entries(sortObj).reduce(
+		(obj, [key, value]) =>
+			key === '_id'
+				? obj
+				: {
+						// biome-ignore lint/performance/noAccumulatingSpread: This is a loop of 0-4 items tops. No performance impact.
+						...obj,
+						[key]: value,
+					},
+		{},
+	);
 
-    let paginatedFilter = {
-        ...filter,
-    } as Filter<TSchema>;
+	let paginatedFilter = {
+		...filter,
+	} as Filter<TSchema>;
 
-    if (!sortObj || !Object.keys(sortObjWithoutId).length) {
-        return !!filter._id ? paginatedFilter : {
-            ...paginatedFilter,
-            _id: {
-                [`${sortObj?._id === -1 ? '$lt' : '$gt'}`]: skipTokenContent.skipValues._id,
-            },
-        };
-    }
+	if (!sortObj || !Object.keys(sortObjWithoutId).length) {
+		return filter._id
+			? paginatedFilter
+			: {
+					...paginatedFilter,
+					_id: {
+						[`${sortObj?._id === -1 ? '$lt' : '$gt'}`]:
+							skipTokenContent.skipValues._id,
+					},
+				};
+	}
 
-    const sortObjWithoutIdKeyList = Object.keys(sortObjWithoutId) ?? [];
-    const sortObjKeyList = [...sortObjWithoutIdKeyList, '_id'];
+	const sortObjWithoutIdKeyList = Object.keys(sortObjWithoutId) ?? [];
+	const sortObjKeyList = [...sortObjWithoutIdKeyList, '_id'];
 
-    const getQueryOrList = (currentSortKeyList: string[]) => {
-        const currentKeyIndex = sortObjKeyList?.findIndex(
-            (key) => key === currentSortKeyList?.[0]
-        );
-        const nextKeyIndex = sortObjKeyList?.findIndex(
-            (key) => key === currentSortKeyList?.[1]
-        );
-        const currentKey = sortObjKeyList?.[currentKeyIndex];
-        const nextKey = sortObjKeyList?.[nextKeyIndex];
-        const lastKey = sortObjKeyList?.[sortObjKeyList.length - 1];
-        const currentKeyValue = skipTokenContent.skipValues[currentKey];
-        const nextKeyValue = skipTokenContent.skipValues[nextKey];
-        const orList = [];
+	const getQueryOrList = (currentSortKeyList: string[]) => {
+		const currentKeyIndex = sortObjKeyList?.findIndex(
+			(key) => key === currentSortKeyList?.[0],
+		);
+		const nextKeyIndex = sortObjKeyList?.findIndex(
+			(key) => key === currentSortKeyList?.[1],
+		);
+		const currentKey = sortObjKeyList?.[currentKeyIndex];
+		const nextKey = sortObjKeyList?.[nextKeyIndex];
+		const firstKey = currentSortKeyList?.[0];
+		const lastKey = sortObjKeyList?.[sortObjKeyList.length - 1];
+		const currentKeyValue = skipTokenContent.skipValues[currentKey];
+		const nextKeyValue = skipTokenContent.skipValues[nextKey];
+		const orList = [];
 
-        if (!!nextKey) {
+		if (currentKey === firstKey) {
+			if (typeof currentKeyValue === 'undefined' || currentKeyValue === null) {
+				if (sortObj[currentKey] !== -1) {
+					orList.push({
+						[currentKey]: {
+							$exists: true,
+							$ne: null,
+						},
+					});
+				}
+			} else {
+				orList.push({
+					[currentKey]: {
+						[`${sortObj[currentKey] === -1 ? '$lt' : '$gt'}`]:
+							currentKeyValue ?? null,
+					},
+				});
+			}
+		}
 
-            if (typeof currentKeyValue === 'undefined' || currentKeyValue === null) {
-                if (sortObj[currentKey] !== -1) {
-                    orList.push({
-                        [currentKey]: {
-                            $exists: true,
-                            $ne: null,
-                        },
-                    });
-                }
-            } else {
-                orList.push({
-                    [currentKey]: {
-                        [`${
-                            sortObj[currentKey] === -1 ? '$lt' : '$gt'
-                        }`]: currentKeyValue,
-                    },
-                });
-            }
-        }
+		if (nextKey) {
+			let recursiveObj: { [key: string]: unknown } = {
+				[currentKey]: currentKeyValue ?? null,
+			};
 
-        if (!!nextKey) {
-            if (nextKey === lastKey) {
-                return [
-                    ...orList,
-                    {
-                        [currentKey]: currentKeyValue ?? null,
-                        [nextKey]: {
-                            [`${
-                                sortObj[nextKey] === -1 ? '$lt' : '$gt'
-                            }`]: nextKeyValue,
-                        },
-                    },
-                ];
-            } else {
-                return [
-                    ...orList,
-                    {
-                        [currentKey]: currentKeyValue ?? null,
-                        $or: getQueryOrList(currentSortKeyList.slice(1)),
-                    },
-                ];
-            }
-        }
+			if (nextKey !== lastKey) {
+				recursiveObj = {
+					...recursiveObj,
+					$or: getQueryOrList(currentSortKeyList.slice(1)),
+				};
+			} else {
+				recursiveObj = {
+					...recursiveObj,
+					[nextKey]: {
+						[`${sortObj[nextKey] === -1 ? '$lt' : '$gt'}`]:
+							nextKeyValue ?? null,
+					},
+				};
+			}
 
-        return [
-            ...orList,
-            {
-                ...sortObjKeyList
-                    .slice(0, sortObjKeyList.length - 1)
-                    .reduce((obj, key) => ({
-                        ...obj,
-                        [key]: skipTokenContent.skipValues[key],
-                    }), {}),
-                [sortObjKeyList[sortObjKeyList.length - 1]]: {
-                    [`${
-                        sortObj[sortObjKeyList[sortObjKeyList.length - 1]] === -1
-                            ? '$lt'
-                            : '$gt'
-                    }`]: skipTokenContent.skipValues[
-                        sortObjKeyList[sortObjKeyList.length - 1]
-                        ],
-                },
-            },
-        ];
-    };
+			orList.push(recursiveObj);
+		}
 
-    const paginationQuery = {
-        $or: getQueryOrList(sortObjKeyList),
-    };
+		return orList;
+	};
 
-    if (!!paginatedFilter.$or) {
-        paginatedFilter = {
-            $and: [paginatedFilter, paginationQuery],
-        } as Filter<TSchema>;
-    } else {
-        paginatedFilter = {
-            ...paginatedFilter,
-            ...paginationQuery,
-        };
-    }
+	const paginationQuery = {
+		$or: getQueryOrList(sortObjKeyList),
+	};
 
-    return paginatedFilter;
+	if (Object.keys(sortObjKeyList).length > 2) {
+		// tie-breakers
+		paginationQuery.$or.push({
+			...sortObjKeyList.slice(0, sortObjKeyList.length - 1).reduce(
+				(obj, key) => ({
+					// biome-ignore lint/performance/noAccumulatingSpread: This is a loop of 0-4 items tops. No performance impact.
+					...obj,
+					[key]: skipTokenContent.skipValues[key] ?? null,
+				}),
+				{},
+			),
+			[sortObjKeyList[sortObjKeyList.length - 1]]: {
+				[`${
+					sortObj[sortObjKeyList[sortObjKeyList.length - 1]] === -1
+						? '$lt'
+						: '$gt'
+				}`]:
+					skipTokenContent.skipValues[
+						sortObjKeyList[sortObjKeyList.length - 1]
+					],
+			},
+		});
+	}
+
+	if (paginatedFilter.$or) {
+		paginatedFilter = {
+			$and: [paginatedFilter, paginationQuery],
+		} as Filter<TSchema>;
+	} else {
+		paginatedFilter = {
+			...paginatedFilter,
+			...paginationQuery,
+		};
+	}
+
+	return paginatedFilter;
 }
 
 /**
@@ -219,41 +244,38 @@ export function getFilterQuery<TSchema>(filter: Filter<TSchema>, skipTokenConten
  * As you see, it gets id=5 twice: on page 1 and 2.
  */
 export function getSortQuery(sort: KeySetSort = {}): KeySetSort {
-    return {
-        ...sort,
-        _id: sort._id === -1 ? -1 : 1,
-    };
+	return {
+		...sort,
+		_id: sort._id === -1 ? -1 : 1,
+	};
 }
 
-export function getSkipValues(sort: KeySetSort, document: Document): SkipValues {
-    return Object.keys(sort).reduce((obj, sortKey) => ({
-        ...obj,
-        [sortKey]: getDocumentSkipValue(sortKey, document) ?? null
-    }), {});
+export function getSkipValues(
+	sort: KeySetSort,
+	document: Document,
+): SkipValues {
+	return Object.keys(sort).reduce(
+		(obj, sortKey) => ({
+			// biome-ignore lint/performance/noAccumulatingSpread: This is a loop of 0-4 items tops. No performance impact.
+			...obj,
+			[sortKey]: getDocumentSkipValue(sortKey, document) ?? null,
+		}),
+		{},
+	);
 }
 
-export function getDocumentSkipValue(key: string, document: Document): SkipValue {
-    const keyPartList = key?.split('.') ?? [];
+export function getDocumentSkipValue(
+	key: string,
+	document: Document,
+): SkipValue {
+	const keyPartList = key?.split('.') ?? [];
 
-    if (keyPartList.length <= 1) {
-        return document[keyPartList[0]];
-    }
+	if (keyPartList.length <= 1) {
+		return document[keyPartList[0]];
+	}
 
-    const documentDotNotationValue = document[key];
-
-    if (isValueDefinedPrimitive(documentDotNotationValue)) {
-        return documentDotNotationValue;
-    }
-
-    return getDocumentSkipValue(keyPartList.slice(1, keyPartList.length).join('.'), document[keyPartList[0]])
-}
-
-function isValueDefinedPrimitive(value: any): boolean {
-    return (
-        typeof value !== 'undefined' &&
-        !Array.isArray(value) &&
-        (typeof value !== 'object' || isDate(value) || isObjectId(value)) &&
-        typeof value !== 'symbol' &&
-        typeof value !== 'function'
-    )
+	return getDocumentSkipValue(
+		keyPartList.slice(1, keyPartList.length).join('.'),
+		document[keyPartList[0]],
+	);
 }
