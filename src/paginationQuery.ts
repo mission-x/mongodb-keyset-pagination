@@ -40,10 +40,6 @@ export interface PaginatedQuery<TSchema> {
 	getSkipContent(documentList: Document[]): SkipTokenContent;
 }
 
-/**
- * For more details: https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3
- * TODO: Make a class where some defaults can be configured, like the fallback 100 limit
- */
 export async function getPaginatedQuery<TSchema>(
 	filter: Filter<TSchema>,
 	skipTokenContent?: SkipTokenContent,
