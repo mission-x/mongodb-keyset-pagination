@@ -26,6 +26,7 @@
     "url": "git+https://github.com/mission-x/mongodb-keyset-pagination.git"
   },
   "devDependencies": {
+    "@types/lodash.isdate": "^4.0.9",
     "@types/node": "^22.15.18",
     "mongodb-memory-server": "^10.1.4",
     "typescript": "^5.8.3"

@@ -1,14 +1,12 @@
-import type {Filter, ObjectId, Document} from 'mongodb';
+import type {Filter, Document, SortDirection, FindOptions} from 'mongodb';
 import isDate from 'lodash.isdate';
+import type {ObjectIdLike} from "bson";
+import {isObjectId} from "./utils.ts";
 
-export type SkipValue = string | number | boolean | bigint | object | ObjectId | null | undefined;
-export type SkipValueType = 'string' | 'number' | 'boolean' | 'bigint' | 'date' | 'objectid' | 'null' | 'undefined';
+export type SkipValue = string | number | boolean | bigint | Date | ObjectIdLike | null;
 
 export interface SkipValues {
-    [key: string]: {
-        type: SkipValueType,
-        value?: SkipValue
-    };
+    [key: string]: SkipValue | null;
 }
 
 /**
@@ -16,7 +14,7 @@ export interface SkipValues {
  * In the future we can support more types.
  */
 export interface KeySetSort {
-    [key: string]: number;
+    [key: string]: SortDirection;
 }
 
 export interface SkipTokenContent {
@@ -25,50 +23,49 @@ export interface SkipTokenContent {
     skipValues: SkipValues,
 }
 
-export interface KeySetFindOptions {
+export interface KeySetFindOptions extends FindOptions {
     sort?: KeySetSort;
-    limit: number;
+}
+
+export interface PaginatedQuery<TSchema> {
+    paginatedFilter: Filter<TSchema>,
+    paginatedSort: KeySetSort,
+    paginatedLimit: number,
+
+    getSkipContent(documentList: Document[]): SkipTokenContent
 }
 
 /**
  * For more details: https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3
  * TODO: Make a class where some defaults can be configured, like the fallback 100 limit
  */
-export async function getPaginatedQuery(filter: Filter<any>, skipToken?: string, options: KeySetFindOptions = { limit: 100 }) {
-    let skipTokenContent: SkipTokenContent;
-
-    if (skipToken) {
-        skipTokenContent = decodeSkipToken(skipToken);
-    }
-
-    const paginatedLimit = options.limit ?? skipTokenContent?.limit;
+export async function getPaginatedQuery<TSchema>(filter: Filter<TSchema>, skipTokenContent?: SkipTokenContent, options: KeySetFindOptions = {}): Promise<PaginatedQuery<TSchema>> {
+    const paginatedLimit = options.limit ?? skipTokenContent?.limit ?? 100;
     const paginatedSort = skipTokenContent?.sort ?? getSortQuery(options.sort);
     const paginatedFilter = getFilterQuery(filter, skipTokenContent);
 
-    const getSkipToken = (documentList: Document[] = []) => {
-        if (!documentList.length) {
-            return [];
+    const getSkipContent = (documentList: Document[] = []): SkipTokenContent => {
+        if (!documentList.length || documentList.length < paginatedLimit) {
+            return;
         }
 
         const lastDocument = documentList[documentList.length - 1];
-        const newSkipTokenContent: SkipTokenContent = {
+        return {
             skipValues: getSkipValues(paginatedSort, lastDocument),
             limit: paginatedLimit,
             sort: paginatedSort,
         };
-
-        return [encodeSkipToken(newSkipTokenContent), newSkipTokenContent];
     }
 
     return {
         paginatedFilter,
         paginatedSort,
         paginatedLimit,
-        getSkipToken
+        getSkipContent
     };
 }
 
-export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenContent): Filter<any> {
+export function getFilterQuery<TSchema>(filter: Filter<TSchema>, skipTokenContent: SkipTokenContent): Filter<TSchema> {
     if (!skipTokenContent) {
         return filter;
     }
@@ -81,14 +78,13 @@ export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenC
 
     let paginatedFilter = {
         ...filter,
-    };
+    } as Filter<TSchema>;
 
     if (!sortObj || !Object.keys(sortObjWithoutId).length) {
-        return {
+        return !!filter._id ? paginatedFilter : {
             ...paginatedFilter,
             _id: {
-                [`${sortObj?._id === -1 ? '$lt' : '$gt'}`]: skipTokenContent.skipValues
-                    ._id,
+                [`${sortObj?._id === -1 ? '$lt' : '$gt'}`]: skipTokenContent.skipValues._id,
             },
         };
     }
@@ -106,16 +102,30 @@ export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenC
         const currentKey = sortObjKeyList?.[currentKeyIndex];
         const nextKey = sortObjKeyList?.[nextKeyIndex];
         const lastKey = sortObjKeyList?.[sortObjKeyList.length - 1];
+        const currentKeyValue = skipTokenContent.skipValues[currentKey];
+        const nextKeyValue = skipTokenContent.skipValues[nextKey];
         const orList = [];
 
         if (!!nextKey) {
-            orList.push({
-                [currentKey]: {
-                    [`${
-                        sortObj[currentKey] === -1 ? '$lt' : '$gt'
-                    }`]: skipTokenContent.skipValues[currentKey],
-                },
-            });
+
+            if (typeof currentKeyValue === 'undefined' || currentKeyValue === null) {
+                if (sortObj[currentKey] !== -1) {
+                    orList.push({
+                        [currentKey]: {
+                            $exists: true,
+                            $ne: null,
+                        },
+                    });
+                }
+            } else {
+                orList.push({
+                    [currentKey]: {
+                        [`${
+                            sortObj[currentKey] === -1 ? '$lt' : '$gt'
+                        }`]: currentKeyValue,
+                    },
+                });
+            }
         }
 
         if (!!nextKey) {
@@ -123,11 +133,11 @@ export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenC
                 return [
                     ...orList,
                     {
-                        [currentKey]: skipTokenContent.skipValues[currentKey],
+                        [currentKey]: currentKeyValue ?? null,
                         [nextKey]: {
                             [`${
                                 sortObj[nextKey] === -1 ? '$lt' : '$gt'
-                            }`]: skipTokenContent.skipValues[nextKey],
+                            }`]: nextKeyValue,
                         },
                     },
                 ];
@@ -135,7 +145,7 @@ export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenC
                 return [
                     ...orList,
                     {
-                        [currentKey]: skipTokenContent.skipValues[currentKey],
+                        [currentKey]: currentKeyValue ?? null,
                         $or: getQueryOrList(currentSortKeyList.slice(1)),
                     },
                 ];
@@ -171,7 +181,7 @@ export function getFilterQuery(filter: Filter<any>, skipTokenContent: SkipTokenC
     if (!!paginatedFilter.$or) {
         paginatedFilter = {
             $and: [paginatedFilter, paginationQuery],
-        };
+        } as Filter<TSchema>;
     } else {
         paginatedFilter = {
             ...paginatedFilter,
@@ -216,13 +226,34 @@ export function getSortQuery(sort: KeySetSort = {}): KeySetSort {
 }
 
 export function getSkipValues(sort: KeySetSort, document: Document): SkipValues {
-
+    return Object.keys(sort).reduce((obj, sortKey) => ({
+        ...obj,
+        [sortKey]: getDocumentSkipValue(sortKey, document) ?? null
+    }), {});
 }
 
-export function encodeSkipToken(skipTokenContent: SkipTokenContent) {
-    return ''; // Needs encryption
+export function getDocumentSkipValue(key: string, document: Document): SkipValue {
+    const keyPartList = key?.split('.') ?? [];
+
+    if (keyPartList.length <= 1) {
+        return document[keyPartList[0]];
+    }
+
+    const documentDotNotationValue = document[key];
+
+    if (isValueDefinedPrimitive(documentDotNotationValue)) {
+        return documentDotNotationValue;
+    }
+
+    return getDocumentSkipValue(keyPartList.slice(1, keyPartList.length).join('.'), document[keyPartList[0]])
 }
 
-export function decodeSkipToken(skipToken: string): SkipTokenContent {
-    return ''; // Needs decryption
+function isValueDefinedPrimitive(value: any): boolean {
+    return (
+        typeof value !== 'undefined' &&
+        !Array.isArray(value) &&
+        (typeof value !== 'object' || isDate(value) || isObjectId(value)) &&
+        typeof value !== 'symbol' &&
+        typeof value !== 'function'
+    )
 }
