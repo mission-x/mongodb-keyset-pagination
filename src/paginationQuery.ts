@@ -179,30 +179,6 @@ export function getFilterQuery<TSchema>(
 		$or: getQueryOrList(sortObjKeyList),
 	};
 
-	if (Object.keys(sortObjKeyList).length > 2) {
-		// tie-breakers
-		paginationQuery.$or.push({
-			...sortObjKeyList.slice(0, sortObjKeyList.length - 1).reduce(
-				(obj, key) => ({
-					// biome-ignore lint/performance/noAccumulatingSpread: This is a loop of 0-4 items tops. No performance impact.
-					...obj,
-					[key]: skipTokenContent.skipValues[key] ?? null,
-				}),
-				{},
-			),
-			[sortObjKeyList[sortObjKeyList.length - 1]]: {
-				[`${
-					sortObj[sortObjKeyList[sortObjKeyList.length - 1]] === -1
-						? '$lt'
-						: '$gt'
-				}`]:
-					skipTokenContent.skipValues[
-						sortObjKeyList[sortObjKeyList.length - 1]
-					],
-			},
-		});
-	}
-
 	if (paginatedFilter.$or) {
 		paginatedFilter = {
 			$and: [paginatedFilter, paginationQuery],
