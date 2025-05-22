@@ -5,8 +5,8 @@ import isDate from 'lodash.isdate';
 import { MongoClient, ObjectId } from 'mongodb';
 import type { Collection, Db, Document, Filter } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { getPaginatedQuery } from './paginationQuery.ts';
-import type { KeySetFindOptions, SkipTokenContent } from './paginationQuery.ts';
+import KeySetPagination from './index.ts';
+import type { KeySetFindOptions, SkipTokenContent } from './index.ts';
 // @ts-ignore
 import movieListJson from './sampleData/movies.json' with { type: 'json' };
 import { getObjectIdToString, isObjectId } from './utils.ts';
@@ -18,15 +18,17 @@ const ratedMovieList = movieList.filter(
 const unratedMovieList = movieList.filter(
 	(movie: Document) => typeof movie.rated === 'undefined',
 );
+
 const DEFAULT_LIMIT = 10;
 const ASSERTION_MAX_PAGINATED_RESULTS_LENGTH = 3; // 30 documents paginated with a limit of 10
+const keySetPagination = new KeySetPagination();
 
 let con: MongoClient;
 let mongoServer: MongoMemoryServer;
 let db: Db;
 let col: Collection;
 
-describe('getPaginatedQuery()', () => {
+describe('KeySetPagination', () => {
 	before(async () => {
 		mongoServer = await MongoMemoryServer.create();
 		con = await MongoClient.connect(mongoServer.getUri(), {});
@@ -796,7 +798,7 @@ async function getPaginatedList(
 	const { collectionName } = testOptions;
 	const collection = db.collection(collectionName ?? 'test');
 	const { paginatedFilter, paginatedSort, paginatedLimit, getSkipContent } =
-		await getPaginatedQuery(filter, skipTokenContent, options);
+		keySetPagination.getPaginatedQuery(filter, skipTokenContent, options);
 
 	const paginatedDocumentList = await collection
 		.find(paginatedFilter, {

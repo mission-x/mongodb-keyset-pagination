@@ -1,5 +1,5 @@
-import type { ObjectIdLike } from 'bson';
 import { ObjectId } from 'mongodb';
+import type { ObjectIdLike } from 'bson';
 
 export function isObjectId(obj: unknown): boolean {
 	return (
@@ -10,5 +10,5 @@ export function isObjectId(obj: unknown): boolean {
 }
 
 export function getObjectIdToString(obj: ObjectIdLike): string {
-	return obj?.toHexString?.();
+	return isObjectId(obj) ? obj.toHexString() : undefined;
 }

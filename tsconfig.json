@@ -1,14 +1,15 @@
 {
-  "compilerOptions": {
-    "allowArbitraryExtensions": true,
-    "declaration": true,
-    "declarationMap": true,
-    "lib": ["es2023"],
-    "module": "NodeNext",
-    "outDir": "./dist",
-    "resolveJsonModule": true,
-    "rewriteRelativeImportExtensions": true,
-    "target": "es2022"
-  },
-  "include": ["./src"],
+	"compilerOptions": {
+		"allowArbitraryExtensions": true,
+		"declaration": true,
+		"declarationMap": true,
+		"lib": ["es2023"],
+		"module": "NodeNext",
+		"outDir": "./dist",
+		"resolveJsonModule": true,
+		"rewriteRelativeImportExtensions": true,
+		"target": "es2022"
+	},
+	"include": ["./src"],
+	"exclude": ["./src/**/*.test.ts"]
 }
