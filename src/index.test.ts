@@ -6,7 +6,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 import type { Collection, Db, Document, Filter } from 'mongodb';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import KeySetPagination from './index.ts';
-import type { KeySetFindOptions, SkipTokenContent } from './index.ts';
+import type { KeySetFindOptions, SkipContent } from './index.ts';
 // @ts-ignore
 import movieListJson from './sampleData/movies.json' with { type: 'json' };
 import { getObjectIdToString, isObjectId } from './utils.ts';
@@ -21,7 +21,10 @@ const unratedMovieList = movieList.filter(
 
 const DEFAULT_LIMIT = 10;
 const ASSERTION_MAX_PAGINATED_RESULTS_LENGTH = 3; // 30 documents paginated with a limit of 10
-const keySetPagination = new KeySetPagination();
+const keySetPagination = new KeySetPagination({
+	defaultLimit: DEFAULT_LIMIT,
+	encryptionKey: '3c3751a129e5c2c8b3a34705',
+});
 
 let con: MongoClient;
 let mongoServer: MongoMemoryServer;
@@ -59,13 +62,10 @@ describe('KeySetPagination', () => {
 
 	describe('Pagination common use cases', () => {
 		it('paginates without sort (defaults)', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of getCommonFilterList()) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: { _id: 1 },
 					},
 					(lastDocument) => {
@@ -78,16 +78,13 @@ describe('KeySetPagination', () => {
 					},
 				);
 
-				const paginatedList = await getPaginatedList(filter, {
-					limit,
-				});
+				const paginatedList = await getPaginatedList(filter);
 
 				assertPaginatedListEquality(expectedPaginatedList, paginatedList);
 			}
 		});
 		it('paginates sorted by _id', async () => {
 			const options = {
-				limit: DEFAULT_LIMIT,
 				sort: {
 					_id: 1,
 				},
@@ -113,7 +110,6 @@ describe('KeySetPagination', () => {
 		});
 		it('paginates sorted by _id descending', async () => {
 			const options = {
-				limit: DEFAULT_LIMIT,
 				sort: {
 					_id: -1,
 				},
@@ -138,13 +134,10 @@ describe('KeySetPagination', () => {
 			}
 		});
 		it('paginates sorted by a single non-unique field', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of getCommonFilterList()) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: {
 							title: 1,
 							_id: 1,
@@ -165,7 +158,6 @@ describe('KeySetPagination', () => {
 				);
 
 				const paginatedList = await getPaginatedList(filter, {
-					limit,
 					sort: {
 						title: 1,
 					},
@@ -175,13 +167,10 @@ describe('KeySetPagination', () => {
 			}
 		});
 		it('paginates sorted by a single non-unique field, descending', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of getCommonFilterList()) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: {
 							title: -1,
 							_id: 1,
@@ -202,7 +191,6 @@ describe('KeySetPagination', () => {
 				);
 
 				const paginatedList = await getPaginatedList(filter, {
-					limit,
 					sort: {
 						title: -1,
 					},
@@ -211,13 +199,10 @@ describe('KeySetPagination', () => {
 			}
 		});
 		it('paginates sorted by a single non-unique field that repeats between paginated results', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of getCommonFilterList()) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: {
 							runtime: 1,
 							_id: 1,
@@ -238,7 +223,6 @@ describe('KeySetPagination', () => {
 				);
 
 				const paginatedList = await getPaginatedList(filter, {
-					limit,
 					sort: {
 						runtime: 1,
 					},
@@ -248,13 +232,10 @@ describe('KeySetPagination', () => {
 			}
 		});
 		it('paginates sorted by a single non-unique field that repeats between paginated results, descending', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of getCommonFilterList()) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: {
 							runtime: -1,
 							_id: 1,
@@ -275,7 +256,6 @@ describe('KeySetPagination', () => {
 				);
 
 				const paginatedList = await getPaginatedList(filter, {
-					limit,
 					sort: {
 						runtime: -1,
 					},
@@ -285,13 +265,10 @@ describe('KeySetPagination', () => {
 			}
 		});
 		it('paginates sorted by multiple fields (recursion)', async () => {
-			const limit = DEFAULT_LIMIT;
-
 			for (const filter of [{}]) {
 				const expectedPaginatedList = await getExpectedPaginatedList(
 					filter,
 					{
-						limit,
 						sort: {
 							year: 1,
 							'imdb.rating': 1,
@@ -328,7 +305,6 @@ describe('KeySetPagination', () => {
 				);
 
 				const paginatedList = await getPaginatedList(filter, {
-					limit,
 					sort: {
 						year: 1,
 						'imdb.rating': 1,
@@ -337,6 +313,150 @@ describe('KeySetPagination', () => {
 
 				assertPaginatedListEquality(expectedPaginatedList, paginatedList);
 			}
+		});
+	});
+
+	describe('Utilizes built-in encryption', () => {
+		it('paginates with the built-in token', async () => {
+			const filter = {
+				rated: 'APPROVED',
+			};
+
+			const expectedPaginatedList = await getExpectedPaginatedList(
+				filter,
+				{
+					sort: {
+						'imdb.rating': -1,
+						_id: 1,
+					},
+				},
+				(lastDocument) => {
+					return {
+						...filter,
+						$or: [
+							{ 'imdb.rating': { $lt: lastDocument.imdb.rating } },
+							{
+								'imdb.rating': lastDocument.imdb.rating,
+								_id: { $gt: lastDocument._id },
+							},
+						],
+					};
+				},
+			);
+
+			const { paginatedFilter, paginatedSort, paginatedLimit, getSkipToken } =
+				keySetPagination.getPaginatedQuery(filter, null, {
+					sort: {
+						'imdb.rating': -1,
+					},
+				});
+
+			const paginatedListA = await col
+				.find(paginatedFilter)
+				.sort(paginatedSort)
+				.limit(paginatedLimit)
+				.toArray();
+
+			paginatedListA.forEach((document, i) => {
+				assert.equal(
+					getObjectIdToString(document._id),
+					getObjectIdToString(expectedPaginatedList[0][i]._id),
+				);
+			});
+
+			const {
+				paginatedFilter: paginatedFilterB,
+				paginatedSort: paginatedSortB,
+				paginatedLimit: paginatedLimitB,
+			} = keySetPagination.getPaginatedQuery(
+				filter,
+				getSkipToken(paginatedListA),
+				{
+					sort: {
+						'imdb.rating': -1,
+					},
+				},
+			);
+
+			const paginatedListB = await col
+				.find(paginatedFilterB)
+				.sort(paginatedSortB)
+				.limit(paginatedLimitB)
+				.toArray();
+
+			paginatedListB.forEach((document, i) => {
+				assert.equal(
+					getObjectIdToString(document._id),
+					getObjectIdToString(expectedPaginatedList[1][i]._id),
+				);
+			});
+		});
+		it('uses a custom encryption algorithm', async () => {
+			const keySetPagination256 = new KeySetPagination({
+				defaultLimit: DEFAULT_LIMIT,
+				encryptionAlgorithm: 'aes-256-cbc',
+				encryptionKey: 'b000925c14b239a39922092d1a9b4c81',
+			});
+
+			const filter = {};
+
+			const expectedPaginatedList = await getExpectedPaginatedList(
+				filter,
+				{
+					sort: {
+						_id: 1,
+					},
+				},
+				(lastDocument) => {
+					return {
+						...filter,
+						_id: { $gt: lastDocument._id },
+					};
+				},
+			);
+
+			const { paginatedFilter, paginatedSort, paginatedLimit, getSkipToken } =
+				keySetPagination256.getPaginatedQuery(filter);
+
+			const paginatedListA = await col
+				.find(paginatedFilter)
+				.sort(paginatedSort)
+				.limit(paginatedLimit)
+				.toArray();
+
+			paginatedListA.forEach((document, i) => {
+				assert.equal(
+					getObjectIdToString(document._id),
+					getObjectIdToString(expectedPaginatedList[0][i]._id),
+				);
+			});
+
+			const {
+				paginatedFilter: paginatedFilterB,
+				paginatedSort: paginatedSortB,
+				paginatedLimit: paginatedLimitB,
+			} = keySetPagination256.getPaginatedQuery(
+				filter,
+				getSkipToken(paginatedListA),
+				{
+					sort: {
+						'imdb.rating': -1,
+					},
+				},
+			);
+
+			const paginatedListB = await col
+				.find(paginatedFilterB)
+				.sort(paginatedSortB)
+				.limit(paginatedLimitB)
+				.toArray();
+
+			paginatedListB.forEach((document, i) => {
+				assert.equal(
+					getObjectIdToString(document._id),
+					getObjectIdToString(expectedPaginatedList[1][i]._id),
+				);
+			});
 		});
 	});
 
@@ -573,13 +693,11 @@ describe('KeySetPagination', () => {
 		});
 
 		it('paginates ascending, from undefined values to defined', async () => {
-			const limit = DEFAULT_LIMIT;
 			const filter = {};
 
 			const expectedPaginatedList = await getExpectedPaginatedList(
 				filter,
 				{
-					limit,
 					sort: {
 						rated: 1,
 						_id: 1,
@@ -610,7 +728,6 @@ describe('KeySetPagination', () => {
 			const paginatedList = await getPaginatedList(
 				filter,
 				{
-					limit,
 					sort: {
 						rated: 1,
 					},
@@ -623,13 +740,11 @@ describe('KeySetPagination', () => {
 			assertPaginatedListEquality(expectedPaginatedList, paginatedList);
 		});
 		it('paginates descending, from defined values to undefined', async () => {
-			const limit = DEFAULT_LIMIT;
 			const filter = {};
 
 			const expectedPaginatedList = await getExpectedPaginatedList(
 				filter,
 				{
-					limit,
 					sort: {
 						rated: -1,
 						_id: 1,
@@ -654,7 +769,6 @@ describe('KeySetPagination', () => {
 			const paginatedList = await getPaginatedList(
 				filter,
 				{
-					limit,
 					sort: {
 						rated: -1,
 					},
@@ -670,7 +784,6 @@ describe('KeySetPagination', () => {
 
 	describe('Paginate with $or in the query', () => {
 		it('paginates with only $or', async () => {
-			const limit = DEFAULT_LIMIT;
 			const filter = {
 				$or: [
 					{
@@ -685,7 +798,6 @@ describe('KeySetPagination', () => {
 			const expectedPaginatedList = await getExpectedPaginatedList(
 				filter,
 				{
-					limit,
 					sort: {
 						year: 1,
 						_id: 1,
@@ -710,7 +822,6 @@ describe('KeySetPagination', () => {
 			);
 
 			const paginatedList = await getPaginatedList(filter, {
-				limit,
 				sort: {
 					year: 1,
 				},
@@ -719,7 +830,6 @@ describe('KeySetPagination', () => {
 			assertPaginatedListEquality(expectedPaginatedList, paginatedList);
 		});
 		it('paginates with $or along with equality', async () => {
-			const limit = DEFAULT_LIMIT;
 			const filter = {
 				year: 1915,
 				$or: [
@@ -733,7 +843,6 @@ describe('KeySetPagination', () => {
 			};
 
 			const expectedPaginatedList = await getExpectedPaginatedList(filter, {
-				limit,
 				sort: {
 					year: 1,
 					_id: 1,
@@ -741,7 +850,6 @@ describe('KeySetPagination', () => {
 			});
 
 			const paginatedList = await getPaginatedList(filter, {
-				limit,
 				sort: {
 					year: 1,
 				},
@@ -760,7 +868,8 @@ async function getExpectedPaginatedList(
 	},
 	testOptions: { collectionName?: string } = {},
 ) {
-	const maxLimit = ASSERTION_MAX_PAGINATED_RESULTS_LENGTH * options.limit;
+	const maxLimit =
+		ASSERTION_MAX_PAGINATED_RESULTS_LENGTH * (options.limit ?? DEFAULT_LIMIT);
 	const { collectionName } = testOptions;
 	const collection = db.collection(collectionName ?? 'test');
 	const dbDocumentList = await collection
@@ -771,13 +880,16 @@ async function getExpectedPaginatedList(
 		.toArray();
 	const expectedPaginatedList = [];
 
-	for (let i = 0; i < maxLimit; i = i + options.limit) {
+	for (let i = 0; i < maxLimit; i = i + (options.limit ?? DEFAULT_LIMIT)) {
 		const lastDocument = dbDocumentList[i - 1];
 		if (i === 0 || lastDocument) {
 			const paginatedFilter =
 				i === 0 ? filter : paginatedFilterFn(lastDocument);
 			const paginatedResultList = await collection
-				.find(paginatedFilter, options)
+				.find(paginatedFilter, {
+					...options,
+					limit: options.limit ?? DEFAULT_LIMIT,
+				})
 				.toArray();
 			expectedPaginatedList.push(paginatedResultList);
 		}
@@ -788,8 +900,8 @@ async function getExpectedPaginatedList(
 
 async function getPaginatedList(
 	filter: Filter<unknown>,
-	options: KeySetFindOptions,
-	skipTokenContent?: SkipTokenContent,
+	options?: KeySetFindOptions,
+	skipTokenContent?: SkipContent,
 	currentPaginatedList = [],
 	testOptions: {
 		collectionName?: string;

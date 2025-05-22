@@ -40,19 +40,24 @@ export interface PaginatedQuery<TSchema> {
 
 export interface KeySetPaginationOptions {
 	defaultLimit?: number;
-	encryptionKey?: string; // 128-bit key, crypto.randomBytes(16)
+	encryptionKey?: string;
+	encryptionAlgorithm?: string;
 }
 
 export default class KeySetPagination {
-	private options: KeySetPaginationOptions;
+	public options: KeySetPaginationOptions;
 
 	constructor(options: KeySetPaginationOptions = {}) {
-		this.options = options;
+		this.options = {
+			defaultLimit: 10,
+			encryptionAlgorithm: 'aes-192-cbc',
+			...options,
+		};
 	}
 
 	getPaginatedQuery<TSchema>(
 		filter: Filter<TSchema>,
-		skipContent?: SkipContent,
+		skipContent?: SkipContent | string,
 		options: KeySetFindOptions = {},
 	): PaginatedQuery<TSchema> {
 		const skipTokenContent =
@@ -98,7 +103,7 @@ export default class KeySetPagination {
 	encryptSkipContent(skipContent: SkipContent): string {
 		const iv = crypto.randomBytes(16);
 		const cipher = crypto.createCipheriv(
-			'aes-128-cbc',
+			this.options.encryptionAlgorithm,
 			this.options.encryptionKey,
 			iv,
 		);
@@ -111,7 +116,7 @@ export default class KeySetPagination {
 		const iv = Buffer.from(skipContentEncrypted.slice(0, 32), 'hex');
 		const encryptedText = skipContentEncrypted.slice(32);
 		const decipher = crypto.createDecipheriv(
-			'aes-128-cbc',
+			this.options.encryptionAlgorithm,
 			this.options.encryptionKey,
 			iv,
 		);
