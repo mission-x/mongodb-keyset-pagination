@@ -1,9 +1,8 @@
 # MongoDB KeySet Pagination
 
 Keyset pagination, also known as seek pagination, is a method of retrieving data from a database in pages.
-Instead of using offsets, which can be inefficient for large datasets, keyset pagination uses a key, like a unique ID or timestamp, to determine the starting point for each page of data. This key represents a "cursor" that indicates the next set of records to retrieve
-
-Credits to [Mosius](https://medium.com/@mosius) for the motivation and a highly recommended read in order to understand the benefits and shortcomings of keyset pagination in MongoDB: [MongoDB Pagination, Fast & Consistent](https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3)
+Instead of using offsets, which can be inefficient for large datasets, keyset pagination uses a key, like a unique ID or timestamp, to determine the starting point for each page of data. This key represents a "cursor" that indicates the next set of records to retrieve.
+Credits to [Mosius](https://medium.com/@mosius) for the motivation and a highly recommended read in order to understand the benefits and shortcomings of keyset pagination: [MongoDB Pagination, Fast & Consistent](https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3)
 
 
 ## Use
@@ -68,9 +67,9 @@ const movieListNext = await db.collection('movies')
 ### First, a word of caution
 
 Although this solution will work well for simplistic needs and will support most of the complex ones as well,
-if you are planning to implement complex sorting in your queries (sorting by multiple fields),
+if you are planning to implement complex sorting in your queries,
 then you might potentially step into performance issues. This solution relies on generating recursive `$or` queries,
-which means optimal indexing might become difficult to achieve the more you add sorted fields to your queries.
+which means optimal indexing might become difficult to achieve the more you add sort fields to your queries.
 
 ```js
 // If you find yourself doing this, then this solution might not be for you...
@@ -148,13 +147,51 @@ const result = keySetPagination.getPaginatedQuery({}, skipContent, {
 The documents are not being counted to know when all documents have been exhausted, we simply check if the length of the paginated list is less than the paginated limit.
 This means that if by coincidence the last paginated document list has the same length as the paginated limit, then a next token will be provided that will result in an empty list when queried.  
 
-## Storing the skip content or a token
+## Utilizing the skip content
 
-The `getSkipContent()` returns the necessary content to fetch the next paginated results.
+The `getSkipContent()` or `getSkipToken()` returns the necessary information to fetch the next paginated results.
 The property `skipValues` of the skip content, includes the document `_id` and the values of the fields that you have chosen to sort by.
 
-Depending on the sensitivity of your data and the fields you choose to sort by, there are different ways to store the skip content, in order to later fetch the next paginated results.
-In either case, it would be good practice for the storage to be short-lived.
+Depending on the sensitivity of your data and the fields you choose to sort by, there are different ways to work with the skip content,
+in order to later fetch the next paginated results.
+
+### Built-in token support
+
+The `getSkipToken()` method can be utilized to receive an encrypted token.
+It encrypts the skip content to a hex string, using the `aes-128-cbc` algorithm, for a balance of security and performance.
+
+```js
+const keySetPagination = new KeySetPagination({
+ encryptionKey: crypto.randomBytes(16)
+});
+const { getSkipToken } = keySetPagination.getPaginatedQuery({});
+const skipToken = getSkipToken(documentList);
+
+res.json({
+    value: [...],
+    nextLink: `https://site.com/movies?skipToken=${skipToken}`,
+});
+
+keySetPagination.getPaginatedQuery({}, skipToken)
+```
+
+### Custom token
+
+The encryption method is up to you, but the token generated should be opaque.
+
+```js
+const { EJSON } = require('bson');
+const { getSkipContent } = keySetPagination.getPaginatedQuery({});
+const skipContent = getSkipContent(documentList);
+const skipToken = encrypt(EJSON.stringify(skipContent));
+
+res.json({
+    value: [...],
+    nextLink: `https://site.com/movies?skipToken=${skipToken}`,
+});
+
+keySetPagination.getPaginatedQuery({}, EJSON.parse(decrypt(skipToken)))
+```
 
 ### Store in a DB
 
@@ -172,42 +209,24 @@ res.json({
 });
 ```
 
-#### Important
+### Important
 
-If you don't store the `skipContent` into MongoDB or you choose to store as a string, **do not** use `JSON.stringify(skipContent)`,
+If you don't store the `skipContent` into a MongoDB or you choose to convert to a string, **do not** use `JSON.stringify(skipContent)`,
 as this will potentially change the value types. E.g. ObjectId and Date types will be converted to strings. Instead, utilize MongoDB's `EJSON`:
 
 ```js
 const { EJSON } = require('bson');
 const skipContent = getSkipContent(movieList);
 const skipContentString = EJSON.stringify(skipContent);
-const {
-    paginatedFilter,
-    paginatedSort,
-    paginatedLimit,
-    getSkipContent
-} = keySetPagination.getPaginatedQuery(filter, EJSON.parse(skipContentString));
-```
-### Encrypt/Decrypt
-
-The encryption method is up to you, but the token generated should be opaque.
-
-```js
-const { EJSON } = require('bson');
-const skipContent = getSkipContent(movieList);
-const skipToken = encrypt(EJSON.stringify(skipContent));
-// const skipTokenDecrypted = EJSON.parse(decrypt(skipToken));
-
-res.json({
-    value: [...],
-    nextLink: `https://site.com/movies?skipToken=${skipToken}`,
-});
+const result = keySetPagination.getPaginatedQuery(filter, EJSON.parse(skipContentString));
 ```
 
-## Examples
+## More Examples
 
 ### Sorting & indexing
 
 ### Generating tokens
 
 ### Pagination results exhausted
+
+### Using Typescript
