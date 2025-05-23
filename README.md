@@ -1,3 +1,5 @@
+[![Node.js CI](https://github.com/mission-x/mongodb-keyset-pagination/actions/workflows/node.js.yml/badge.svg)](https://github.com/mission-x/mongodb-keyset-pagination/actions/workflows/node.js.yml)
+
 # MongoDB KeySet Pagination
 
 Keyset pagination, also known as seek pagination, is a method of retrieving data from a database in pages.
