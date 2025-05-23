@@ -16,7 +16,7 @@ npm i mongodb-keyset-pagination
 
 ```js
 // import KeySetPagination from 'mongodb-keyset-pagination';
-const KeySetPagination = require('mongodb-keyset-pagination');
+const KeySetPagination = require('mongodb-keyset-pagination').default;
 const keySetPagination = new KeySetPagination({
     defaultLimit: 10
 });
