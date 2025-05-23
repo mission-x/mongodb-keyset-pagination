@@ -1,5 +1,4 @@
 {
-	"private": true,
 	"name": "mongodb-keyset-pagination",
 	"version": "1.0.0",
 	"description": "Helper methods to make MongoDB keyset pagination easier.",
@@ -13,11 +12,7 @@
 		"types:check": "tsc --noEmit",
 		"lint": "biome ci ./src"
 	},
-	"keywords": [
-		"mongodb",
-		"mongodb keyset",
-		"mongodb pagination"
-	],
+	"keywords": ["mongodb", "mongodb keyset", "mongodb pagination"],
 	"homepage": "https://github.com/mission-x/mongodb-keyset-pagination#readme",
 	"bugs": {
 		"url": "https://github.com/mission-x/mongodb-keyset-pagination/issues"
@@ -34,9 +29,7 @@
 		"mongodb-memory-server": "^10.1.4",
 		"typescript": "^5.8.3"
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"dependencies": {
 		"bson": "^6.10.3"
 	}
