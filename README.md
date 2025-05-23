@@ -4,6 +4,7 @@
 
 Keyset pagination, also known as seek pagination, is a method of retrieving data from a database in pages.
 Instead of using offsets, which can be inefficient for large datasets, keyset pagination uses a key, like a unique ID or timestamp, to determine the starting point for each page of data. This key represents a "cursor" that indicates the next set of records to retrieve.
+
 Credits to [Mosius](https://medium.com/@mosius) for the motivation and a highly recommended read in order to understand the benefits and shortcomings of keyset pagination: [MongoDB Pagination, Fast & Consistent](https://medium.com/swlh/mongodb-pagination-fast-consistent-ece2a97070f3)
 
 
