@@ -161,7 +161,7 @@ in order to later fetch the next paginated results.
 ### Built-in token support
 
 The `getSkipToken()` method can be utilized to receive an encrypted token.
-It encrypts the skip content to a hex string, using the default `aes-192-cbc` algorithm, for a balance of security and performance.
+It encrypts the skip content to a hex string, using the default `aes-192-cbc` algorithm, for a balance between security and performance.
 
 ```js
 const keySetPagination = new KeySetPagination({
