@@ -1,6 +1,6 @@
 {
 	"name": "mongodb-keyset-pagination",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Helper methods to make MongoDB keyset pagination easier.",
 	"author": "missionX",
 	"license": "ISC",
@@ -29,8 +29,8 @@
 		"mongodb-memory-server": "^10.1.4",
 		"typescript": "^5.8.3"
 	},
-	"files": ["dist"],
-	"dependencies": {
-		"bson": "^6.10.3"
-	}
+	"peerDependencies": {
+		"bson": ">=1"
+	},
+	"files": ["dist"]
 }
