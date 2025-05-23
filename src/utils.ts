@@ -1,5 +1,5 @@
-import { ObjectId } from 'mongodb';
 import type { ObjectIdLike } from 'bson';
+import { ObjectId } from 'mongodb';
 
 export function isObjectId(obj: unknown): boolean {
 	return (

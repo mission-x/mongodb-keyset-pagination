@@ -1,7 +1,7 @@
-import { EJSON } from 'bson';
 import type { ObjectIdLike } from 'bson';
 import type { Document, Filter, FindOptions, SortDirection } from 'mongodb';
 import crypto from 'node:crypto';
+import { EJSON } from 'bson';
 
 export type SkipValue =
 	| string
