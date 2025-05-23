@@ -108,7 +108,7 @@ const movieListNext = await db.collection('movies')
     .sort(paginatedSort)
     .limit(paginatedLimit)
     .project({
-        name: -1 // Do not exclude the name field
+        name: 0 // Do not exclude the name field
     })
     .toArray();
 ```
