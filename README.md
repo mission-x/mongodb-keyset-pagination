@@ -59,15 +59,13 @@ const movieListNext = await db.collection('movies')
 
 - Cursor based pagination: [mongo-cursor-pagination](https://github.com/mixmaxhq/mongo-cursor-pagination), [mongodb-cross-cursor](https://github.com/crisp-oss/node-mongodb-native-cross-cursor)
 - [Skip-limit](https://www.mongodb.com/docs/manual/reference/method/cursor.skip/) pagination
-- [Atlas search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/)
+- [Atlas search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/), which provides [cursor based pagination](https://www.mongodb.com/docs/atlas/atlas-search/performance/query-performance/#limit-use-of--skip-and--limit-after--search).
 
 ### Why consider KeySet pagination then?
 
 - Better performance than the skip-limit pagination, if multiple page traversals are expected.
 - Does not create a layer of abstraction around the MongoDB or Mongoose driver, in comparison with the cursor based solutions.
-
-If you are on MongoDB Atlas and you are dealing with complex/unpredictable queries, multiple sorting fields or need relevance based results,
-then [search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/) can be a better option for you.
+- In Atlas search [latest data might not be available immediately for queries](https://www.mongodb.com/docs/atlas/atlas-search/manage-indexes/#index-consistency-and-rebuilding). Also, indexing and querying is more complex for simple needs.
 
 ## Known Limitations
 
