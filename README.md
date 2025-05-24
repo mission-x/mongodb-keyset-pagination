@@ -67,7 +67,7 @@ const movieListNext = await db.collection('movies')
 - Does not create a layer of abstraction around the MongoDB or Mongoose driver, in comparison with the cursor based solutions.
 
 If you are on MongoDB Atlas and you are dealing with complex/unpredictable queries, multiple sorting fields or need relevance based results,
-then [search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/) can be a better option for you.
+then [search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/) will be a better option for you.
 
 ## Known Limitations
 
