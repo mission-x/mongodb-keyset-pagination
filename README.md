@@ -58,8 +58,8 @@ const movieListNext = await db.collection('movies')
 ## Alternatives
 
 - Cursor based pagination: [mongo-cursor-pagination](https://github.com/mixmaxhq/mongo-cursor-pagination), [mongodb-cross-cursor](https://github.com/crisp-oss/node-mongodb-native-cross-cursor)
-- [Skip-limit](https://www.mongodb.com/docs/manual/reference/method/cursor.skip/) pagination
 - [Atlas search pagination](https://www.mongodb.com/docs/atlas/atlas-search/paginate-results/), which provides [cursor based pagination](https://www.mongodb.com/docs/atlas/atlas-search/performance/query-performance/#limit-use-of--skip-and--limit-after--search).
+- [Skip-limit](https://www.mongodb.com/docs/manual/reference/method/cursor.skip/) pagination
 
 ### Why consider KeySet pagination then?
 
