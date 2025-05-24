@@ -131,8 +131,7 @@ const result = keySetPagination.getPaginatedQuery({}, skipContent, {
 
 ### Sorting by an array field is not supported
 
-Due to the complexity and the need to use an [aggregate sorting pipeline](https://www.mongodb.com/docs/manual/reference/operator/aggregation/sort/#sort-by-an-array-field),
-sorting by an array field is not supported.
+Due to the additional complexity, sorting by an array field is not supported at this moment.
 
 ```js
 // {
