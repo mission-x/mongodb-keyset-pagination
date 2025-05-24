@@ -107,20 +107,25 @@ export default class KeySetPagination {
 			this.options.encryptionKey,
 			iv,
 		);
-		let encrypted = cipher.update(EJSON.stringify(skipContent), 'utf8', 'hex');
-		encrypted += cipher.final('hex');
-		return iv.toString('hex') + encrypted;
+		let encrypted = cipher.update(
+			EJSON.stringify(skipContent),
+			'utf8',
+			'base64url',
+		);
+		encrypted += cipher.final('base64url');
+		return `${iv.toString('base64url')}.${encrypted}`;
 	}
 
 	decryptSkipContent(skipContentEncrypted: string): SkipContent {
-		const iv = Buffer.from(skipContentEncrypted.slice(0, 32), 'hex');
-		const encryptedText = skipContentEncrypted.slice(32);
+		const encryptedParts = skipContentEncrypted.split('.');
+		const iv = Buffer.from(encryptedParts[0], 'base64url');
+		const encryptedText = encryptedParts[1];
 		const decipher = crypto.createDecipheriv(
 			this.options.encryptionAlgorithm,
 			this.options.encryptionKey,
 			iv,
 		);
-		let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+		let decrypted = decipher.update(encryptedText, 'base64url', 'utf8');
 		decrypted += decipher.final('utf8');
 		return EJSON.parse(decrypted);
 	}
