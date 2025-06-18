@@ -88,7 +88,10 @@ export default class KeySetPagination {
 		};
 
 		const getSkipToken = (documentList: Document[] = []): string => {
-			return this.encryptSkipContent(getSkipContent(documentList));
+			const skipContentToEncrypt = getSkipContent(documentList);
+			return skipContentToEncrypt
+				? this.encryptSkipContent(skipContentToEncrypt)
+				: undefined;
 		};
 
 		return {
