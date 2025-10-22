@@ -34,7 +34,9 @@ export interface PaginatedQuery<TSchema> {
 	paginatedFilter: Filter<TSchema>;
 	paginatedSort: KeySetSort;
 	paginatedLimit: number;
+
 	getSkipContent(documentList: Document[]): SkipContent;
+
 	getSkipToken(documentList: Document[]): string;
 }
 

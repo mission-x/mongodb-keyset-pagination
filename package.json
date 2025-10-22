@@ -10,7 +10,8 @@
 		"build": "tsc",
 		"prepack": "tsc",
 		"types:check": "tsc --noEmit",
-		"lint": "biome ci ./src"
+		"lint": "biome ci ./src",
+		"lint:check": "biome check ./src --fix"
 	},
 	"keywords": ["mongodb", "mongodb keyset", "mongodb pagination"],
 	"homepage": "https://github.com/mission-x/mongodb-keyset-pagination#readme",
