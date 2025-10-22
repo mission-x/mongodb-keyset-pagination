@@ -1,6 +1,6 @@
 {
 	"name": "mongodb-keyset-pagination",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Helper methods to make MongoDB keyset pagination easier.",
 	"author": "missionX",
 	"license": "ISC",

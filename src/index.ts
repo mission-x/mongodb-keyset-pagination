@@ -141,7 +141,8 @@ export default class KeySetPagination {
 			return filter;
 		}
 
-		const sortObj = skipContent.sort;
+		const sortObj = skipContent.sort ?? this.getSortQuery();
+
 		const sortObjWithoutId = Object.entries(sortObj).reduce(
 			(obj, [key, value]) =>
 				key === '_id'
@@ -157,18 +158,6 @@ export default class KeySetPagination {
 		let paginatedFilter = {
 			...filter,
 		} as Filter<TSchema>;
-
-		if (!sortObj || !Object.keys(sortObjWithoutId).length) {
-			return filter._id
-				? paginatedFilter
-				: {
-						...paginatedFilter,
-						_id: {
-							[`${sortObj?._id === -1 ? '$lt' : '$gt'}`]:
-								skipContent.skipValues._id,
-						},
-					};
-		}
 
 		const sortObjWithoutIdKeyList = Object.keys(sortObjWithoutId) ?? [];
 		const sortObjKeyList = [...sortObjWithoutIdKeyList, '_id'];
